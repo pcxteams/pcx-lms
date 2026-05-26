@@ -58,7 +58,7 @@ export async function login(prevState: LoginState, formData: FormData): Promise<
     isSysAdmin: data.isSysAdmin,
   });
 
-  redirect('/');
+  redirect('/essentials');
 }
 
 export async function logout(): Promise<void> {
