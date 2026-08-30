@@ -5,10 +5,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth/auth-client';
 
 const NAV_ITEMS = [
-  { label: 'Essentials', href: '/essentials' },
-  { label: 'Resources', href: '/resources' },
-  { label: 'My Business', href: '/my-business' },
-  { label: 'My Team', href: '/my-team' },
+  { label: 'Home', href: '/' },
+  { label: 'Learn', href: '/learn' },
+  { label: 'Plan', href: '/plan' },
+  { label: 'Produce', href: '/produce' },
+  { label: 'Office', href: '/office' },
 ] as const;
 
 export function TopNav({ email }: { email: string }) {
@@ -35,7 +36,10 @@ export function TopNav({ email }: { email: string }) {
         {/* Primary navigation */}
         <nav className="flex flex-1 items-center gap-1" aria-label="Main navigation">
           {NAV_ITEMS.map(({ label, href }) => {
-            const isActive = pathname === href || pathname.startsWith(`${href}/`);
+            const isActive =
+              href === '/'
+                ? pathname === '/'
+                : pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 key={href}

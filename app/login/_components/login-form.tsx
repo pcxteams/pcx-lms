@@ -36,10 +36,10 @@ export function LoginForm() {
       return;
     }
 
-    // Session cookie is set; land on the app. refresh() re-runs the guarded
+    // Session cookie is set; land on Home. refresh() re-runs the guarded
     // layout (server component) with the new session, which is also where
-    // the agents-only check happens.
-    router.replace('/essentials');
+    // the onboarding-survey gate happens.
+    router.replace('/');
     router.refresh();
   }
 
