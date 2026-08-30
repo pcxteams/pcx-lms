@@ -1,52 +1,43 @@
 import 'server-only';
+import { headers } from 'next/headers';
 
-import { cookies } from 'next/headers';
+const API_URL = process.env.API_URL ?? 'http://localhost:3000';
 
-const SESSION_COOKIE = 'pcx_session';
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-export type SessionData = {
-  token: string;
-  userId: number;
+export interface SessionUser {
+  id: string;
   email: string;
-  isLeader: boolean;
-  isAgent: boolean;
-  isSysAdmin: boolean;
-  expiresAt: string;
-};
-
-export async function createSession(data: Omit<SessionData, 'expiresAt'>): Promise<void> {
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  const session: SessionData = { ...data, expiresAt: expiresAt.toISOString() };
-  const cookieStore = await cookies();
-
-  cookieStore.set(SESSION_COOKIE, JSON.stringify(session), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    expires: expiresAt,
-    sameSite: 'lax',
-    path: '/',
-  });
+  name: string;
+  emailVerified: boolean;
+  image?: string | null;
+  role?: string | null;
 }
 
-export async function getSession(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const raw = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!raw) return null;
+export interface Session {
+  user: SessionUser;
+  session: { id: string; userId: string; expiresAt: string };
+}
+
+/**
+ * Reads the current session by forwarding the incoming cookies to the NestJS
+ * API's Better Auth `get-session` endpoint. Mirrors pcx-admin-v2/src/lib/session.ts
+ * — keep both in sync. Returns `null` when there is no valid session.
+ *
+ * Replaces the previous hand-rolled `pcx_session` cookie scheme, which called
+ * a `/auth/sign-in` endpoint that does not exist on this backend.
+ */
+export async function getSession(): Promise<Session | null> {
+  const cookie = (await headers()).get('cookie') ?? '';
+  if (!cookie) return null;
 
   try {
-    const session = JSON.parse(raw) as SessionData;
-    if (new Date(session.expiresAt) < new Date()) {
-      await destroySession();
-      return null;
-    }
-    return session;
+    const res = await fetch(`${API_URL}/api/auth/get-session`, {
+      headers: { cookie },
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Session | null;
+    return data?.user ? data : null;
   } catch {
     return null;
   }
-}
-
-export async function destroySession(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
 }

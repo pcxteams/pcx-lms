@@ -1,57 +1,50 @@
 'use client';
 
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
-import { login, type LoginState } from '@/lib/auth/actions';
-
-const initialState: LoginState = { error: null };
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {pending ? (
-        <span className="flex items-center justify-center gap-2">
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-          Signing in…
-        </span>
-      ) : (
-        'Sign in'
-      )}
-    </button>
-  );
-}
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { authClient } from '@/lib/auth/auth-client';
 
 export function LoginForm() {
-  const [state, formAction] = useActionState(login, initialState);
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('email') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+
+    if (!email || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+
+    setPending(true);
+    try {
+      const { error } = await authClient.signIn.email({ email, password });
+      if (error) {
+        setError(error.message ?? 'Invalid email or password.');
+        setPending(false);
+        return;
+      }
+    } catch {
+      setError('Unable to reach the server. Please try again later.');
+      setPending(false);
+      return;
+    }
+
+    // Session cookie is set; land on the app. refresh() re-runs the guarded
+    // layout (server component) with the new session, which is also where
+    // the agents-only check happens.
+    router.replace('/essentials');
+    router.refresh();
+  }
 
   return (
-    <form action={formAction} className="space-y-5" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       {/* Email */}
       <div>
         <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -63,8 +56,9 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           required
+          disabled={pending}
           placeholder="you@example.com"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors disabled:bg-slate-50 disabled:text-slate-400"
         />
       </div>
 
@@ -79,13 +73,14 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
+          disabled={pending}
           placeholder="••••••••"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors disabled:bg-slate-50 disabled:text-slate-400"
         />
       </div>
 
       {/* Error message */}
-      {state.error && (
+      {error && (
         <div
           role="alert"
           aria-live="polite"
@@ -104,11 +99,44 @@ export function LoginForm() {
               clipRule="evenodd"
             />
           </svg>
-          {state.error}
+          {error}
         </div>
       )}
 
-      <SubmitButton />
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg
+              className="h-4 w-4 animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            Signing in…
+          </span>
+        ) : (
+          'Sign in'
+        )}
+      </button>
     </form>
   );
 }
