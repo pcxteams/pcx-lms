@@ -28,6 +28,8 @@ export interface RankedContentItem {
   assignmentStatus: string;
   score: number;
   factors: RankedContentFactor[];
+  /** LLM-generated "why" text. Undefined when generation failed — fall back to explainRanking(). */
+  explanation?: string;
 }
 
 /** Suggested-answer sets exactly as confirmed by product 2026-08-28/29. */
@@ -66,10 +68,20 @@ export const HELP_AREA_OPTIONS = [
 export const MAX_HELP_AREAS = 3;
 
 /**
- * Generates the same "why" text the artifact POC used, from the API's factor
- * breakdown — a template, not an LLM call, standing in for what a real
- * language-model explanation would phrase more naturally. See
- * career-builder.service.ts's own doc comment on why this is deterministic.
+ * The real "why" text now comes from the API (CareerBuilderExplanationService,
+ * Claude Haiku 4.5) via `item.explanation`. Use this helper rather than
+ * reading `item.explanation` directly — it falls back to the deterministic
+ * template below whenever generation failed for that item, so an LLM outage
+ * degrades the copy, not the page.
+ */
+export function getExplanation(item: RankedContentItem): string {
+  return item.explanation ?? explainRanking(item);
+}
+
+/**
+ * The original template-based "why" text (from the artifact POC) — now the
+ * fallback path only, used by getExplanation() when the API didn't supply a
+ * real explanation for an item.
  */
 export function explainRanking(item: RankedContentItem): string {
   const phrases: Record<string, (f: RankedContentFactor) => string | null> = {

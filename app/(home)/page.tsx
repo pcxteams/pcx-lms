@@ -1,5 +1,5 @@
 import { apiGet } from '@/lib/api';
-import { explainRanking, type MyAgentContext, type RankedContentItem } from '@/lib/career-builder';
+import { getExplanation, type MyAgentContext, type RankedContentItem } from '@/lib/career-builder';
 
 const PRIORITY_TAG: Record<string, string> = {
   critical: 'bg-red-50 text-red-600',
@@ -71,7 +71,7 @@ export default async function HomePage() {
               </p>
               <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
                 <h2 className="text-lg font-bold text-slate-900">{top.title}</h2>
-                <p className="mt-1 text-sm text-slate-500">{explainRanking(top)}</p>
+                <p className="mt-1 text-sm text-slate-500">{getExplanation(top)}</p>
                 <div className="mt-3">
                   <ItemTags item={top} />
                 </div>
@@ -91,7 +91,7 @@ export default async function HomePage() {
                     className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
                   >
                     <h3 className="text-sm font-semibold text-slate-900">{item.title}</h3>
-                    <p className="mt-0.5 text-xs text-slate-500">{explainRanking(item)}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{getExplanation(item)}</p>
                     <div className="mt-2">
                       <ItemTags item={item} />
                     </div>
