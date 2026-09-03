@@ -32,6 +32,29 @@ export interface RankedContentItem {
   explanation?: string;
 }
 
+export interface LearningPlanStep {
+  itemId: string;
+  tip: string;
+  order: number;
+}
+
+export interface LearningPlan {
+  planSummary: string;
+  steps: LearningPlanStep[];
+}
+
+/**
+ * GET /career-builder/plan's shape. `queue` is the same deterministic,
+ * always-present ranked list as GET /career-builder/queue. `plan` is null
+ * whenever AI curation failed or there were no candidates — render the plain
+ * queue in that case, same "LLM downtime never blocks the page" rule as
+ * per-item explanations, just for the plan as a whole.
+ */
+export interface MyLearningPlanResponse {
+  queue: RankedContentItem[];
+  plan: LearningPlan | null;
+}
+
 /** Suggested-answer sets exactly as confirmed by product 2026-08-28/29. */
 export const EXPERIENCE_LENGTH_OPTIONS = [
   'Brand New',
