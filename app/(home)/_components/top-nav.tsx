@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { authClient } from '@/lib/auth/auth-client';
+import { usePathname } from 'next/navigation';
+import { SignOutButton } from './sign-out-button';
 
 const NAV_ITEMS = [
   { label: 'Home', href: '/' },
@@ -14,18 +14,6 @@ const NAV_ITEMS = [
 
 export function TopNav({ email }: { email: string }) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  async function handleSignOut() {
-    // Navigate to /login regardless of outcome so the button is never a dead
-    // click on a network error.
-    try {
-      await authClient.signOut();
-    } finally {
-      router.replace('/login');
-      router.refresh();
-    }
-  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
@@ -61,13 +49,7 @@ export function TopNav({ email }: { email: string }) {
         {/* User info + sign-out */}
         <div className="flex shrink-0 items-center gap-4">
           <span className="hidden text-sm text-slate-500 sm:block">{email}</span>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
-          >
-            Sign out
-          </button>
+          <SignOutButton className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300" />
         </div>
       </div>
     </header>

@@ -4,6 +4,7 @@ import { apiGet } from '@/lib/api';
 import type { MyAgentContext } from '@/lib/career-builder';
 import { TopNav } from './_components/top-nav';
 import { OnboardingSurvey } from './_components/onboarding-survey';
+import { SignOutButton } from './_components/sign-out-button';
 
 export default async function HomeLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -26,6 +27,7 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
           <p className="mt-2 text-sm text-slate-500">
             Contact your administrator if you believe this is a mistake.
           </p>
+          <SignOutButton className="mt-6 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300" />
         </div>
       </div>
     );
