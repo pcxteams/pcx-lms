@@ -54,10 +54,13 @@ export function VideoPlayer({
   workspaceId,
   contentId,
   config,
+  onComplete,
 }: {
   workspaceId: string;
   contentId: string;
   config: VideoConfig;
+  /** Called once the completion call actually succeeds — not fired on failure. */
+  onComplete?: () => void;
 }) {
   const [uploadUrl, setUploadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +70,12 @@ export function VideoPlayer({
   const handleEnded = () => {
     if (completedRef.current) return;
     completedRef.current = true;
-    void apiClientPost(`/workspaces/${workspaceId}/content/${contentId}/complete`);
+    void apiClientPost<{ completed: boolean }>(
+      `/workspaces/${workspaceId}/content/${contentId}/complete`
+    ).then((res) => {
+      if (res) onComplete?.();
+      else completedRef.current = false; // allow a retry on the next `ended` if the call failed
+    });
   };
 
   // Upload case: fetch the presigned URL, then render a native <video>.

@@ -43,6 +43,8 @@ export interface ContentSummary {
   status: string;
   estTime: string | null;
   config: VideoConfig | Record<string, unknown>;
+  /** Whether the calling agent has completed this item — two states only, no in-progress. */
+  completed: boolean;
 }
 
 export interface ContentListResponse {
