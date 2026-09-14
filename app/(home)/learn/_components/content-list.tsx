@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { VideoPlayer } from '@/components/video-player';
-import { apiClientPost } from '@/lib/api-client';
+import { apiClientDelete, apiClientPost } from '@/lib/api-client';
 import type { ContentSummary, VideoConfig } from '@/lib/content';
 
 /** Minimal list-and-play view: click a video's title to expand its player in place. */
@@ -22,13 +22,11 @@ export function ContentList({
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [errorIds, setErrorIds] = useState<Set<string>>(new Set());
 
-  const markCompleted = (id: string) => {
-    setContentItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, completed: true } : item))
-    );
+  const setCompleted = (id: string, completed: boolean) => {
+    setContentItems((prev) => prev.map((item) => (item.id === id ? { ...item, completed } : item)));
   };
 
-  const handleMarkComplete = async (id: string) => {
+  const handleToggleComplete = async (id: string, completed: boolean) => {
     setPendingIds((prev) => new Set(prev).add(id));
     setErrorIds((prev) => {
       if (!prev.has(id)) return prev;
@@ -36,16 +34,20 @@ export function ContentList({
       next.delete(id);
       return next;
     });
-    const res = await apiClientPost<{ completed: boolean }>(
-      `/workspaces/${workspaceId}/content/${id}/complete`
-    );
+    const res = completed
+      ? await apiClientDelete<{ completed: boolean }>(
+          `/workspaces/${workspaceId}/content/${id}/complete`
+        )
+      : await apiClientPost<{ completed: boolean }>(
+          `/workspaces/${workspaceId}/content/${id}/complete`
+        );
     setPendingIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
       return next;
     });
     if (res) {
-      markCompleted(id);
+      setCompleted(id, !completed);
     } else {
       setErrorIds((prev) => new Set(prev).add(id));
     }
@@ -77,15 +79,19 @@ export function ContentList({
                 </span>
                 <span className="text-xs text-slate-400">{isOpen ? 'Close' : 'Play'}</span>
               </button>
-              {!item.completed && (
-                <button
-                  onClick={() => void handleMarkComplete(item.id)}
-                  disabled={pendingIds.has(item.id)}
-                  className="ml-3 shrink-0 rounded-full border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {pendingIds.has(item.id) ? 'Marking…' : 'Mark as complete'}
-                </button>
-              )}
+              <button
+                onClick={() => void handleToggleComplete(item.id, item.completed)}
+                disabled={pendingIds.has(item.id)}
+                className="ml-3 shrink-0 rounded-full border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {pendingIds.has(item.id)
+                  ? item.completed
+                    ? 'Undoing…'
+                    : 'Marking…'
+                  : item.completed
+                    ? 'Undo'
+                    : 'Mark as complete'}
+              </button>
             </div>
             {errorIds.has(item.id) && (
               <p className="mt-1 text-xs text-red-600">Couldn&apos;t mark complete — try again.</p>
@@ -96,7 +102,7 @@ export function ContentList({
                   workspaceId={workspaceId}
                   contentId={item.id}
                   config={item.config as VideoConfig}
-                  onComplete={() => markCompleted(item.id)}
+                  onComplete={() => setCompleted(item.id, true)}
                 />
               </div>
             )}

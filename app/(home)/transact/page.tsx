@@ -1,9 +1,9 @@
 import { ComingSoon } from '../_components/coming-soon';
 
-export default function ProducePage() {
+export default function TransactPage() {
   return (
     <ComingSoon
-      title="Produce"
+      title="Transact"
       description="Leads, clients, transactions, and production tracking are coming here soon."
     />
   );
