@@ -102,37 +102,45 @@ export function getExplanation(item: RankedContentItem): string {
 }
 
 /**
+ * Clause fragments per ranking factor — shared by explainRanking() (composes
+ * them into the fallback sentence) and the "Why this" panel (renders them as
+ * standalone chips). Single source of truth so the two never drift.
+ */
+const FACTOR_PHRASES: Record<string, (f: RankedContentFactor) => string | null> = {
+  priority: (f) =>
+    f.tag === 'critical'
+      ? "it's marked Critical"
+      : f.tag === 'very_important'
+        ? "it's marked Very Important"
+        : "it's marked Important",
+  assignmentStatus: (f) =>
+    f.tag === 'required' ? "it's Required" : f.tag === 'recommended' ? "it's Recommended" : null,
+  topicMatch: (f) =>
+    f.tagScore > 0 ? `it matches what you said you need help with (${f.tag})` : null,
+  leaderAssigned: (f) => (f.tagScore > 0 ? 'your leader assigned it directly' : null),
+  progressStickiness: (f) => (f.tagScore > 0 ? "you're already partway through it" : null),
+  recency: (f) =>
+    f.tag === 'overdue' ? "it's overdue" : f.tag === 'due_soon' ? "it's due soon" : null,
+};
+
+/** Ranked, filtered list of human-readable reasons behind an item's score — every non-empty, contributing factor, highest contribution first. */
+export function rankedFactorReasons(item: RankedContentItem): string[] {
+  return item.factors
+    .map((f) => ({ text: FACTOR_PHRASES[f.category]?.(f) ?? null, contribution: f.contribution }))
+    .filter(
+      (f): f is { text: string; contribution: number } => f.text !== null && f.contribution > 0
+    )
+    .sort((a, b) => b.contribution - a.contribution)
+    .map((f) => f.text);
+}
+
+/**
  * The original template-based "why" text (from the artifact POC) — now the
  * fallback path only, used by getExplanation() when the API didn't supply a
  * real explanation for an item.
  */
 export function explainRanking(item: RankedContentItem): string {
-  const phrases: Record<string, (f: RankedContentFactor) => string | null> = {
-    priority: (f) =>
-      f.tag === 'critical'
-        ? "it's marked Critical"
-        : f.tag === 'very_important'
-          ? "it's marked Very Important"
-          : "it's marked Important",
-    assignmentStatus: (f) =>
-      f.tag === 'required' ? "it's Required" : f.tag === 'recommended' ? "it's Recommended" : null,
-    topicMatch: (f) =>
-      f.tagScore > 0 ? `it matches what you said you need help with (${f.tag})` : null,
-    leaderAssigned: (f) => (f.tagScore > 0 ? 'your leader assigned it directly' : null),
-    progressStickiness: (f) => (f.tagScore > 0 ? "you're already partway through it" : null),
-    recency: (f) =>
-      f.tag === 'overdue' ? "it's overdue" : f.tag === 'due_soon' ? "it's due soon" : null,
-  };
-
-  const ranked = item.factors
-    .map((f) => ({ text: phrases[f.category]?.(f) ?? null, contribution: f.contribution }))
-    .filter(
-      (f): f is { text: string; contribution: number } => f.text !== null && f.contribution > 0
-    )
-    .sort((a, b) => b.contribution - a.contribution)
-    .slice(0, 2)
-    .map((f) => f.text);
-
+  const ranked = rankedFactorReasons(item).slice(0, 2);
   if (ranked.length === 0) return 'Recommended as your next step.';
   return `Recommended because ${ranked.join(' and ')}.`;
 }

@@ -21,13 +21,13 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
 
   if (!myContext) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="max-w-sm rounded-2xl bg-white px-8 py-10 text-center shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-lg font-bold text-slate-900">No active agent workspace found</h1>
-          <p className="mt-2 text-sm text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-sm rounded-xl border border-gray-100 bg-white px-8 py-10 text-center">
+          <h1 className="text-lg font-bold text-gray-900">No active agent workspace found</h1>
+          <p className="mt-2 text-sm text-gray-500">
             Contact your administrator if you believe this is a mistake.
           </p>
-          <SignOutButton className="mt-6 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300" />
+          <SignOutButton className="mt-6 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300" />
         </div>
       </div>
     );
@@ -37,15 +37,15 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
   // empty array is a reliable "hasn't completed the survey yet" signal.
   if (myContext.focusCategories.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-gray-50">
         <OnboardingSurvey />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <TopNav email={session.user.email} />
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <TopNav name={session.user.name} email={session.user.email} />
       <main className="flex-1">{children}</main>
     </div>
   );
