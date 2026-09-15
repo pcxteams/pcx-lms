@@ -55,6 +55,40 @@ export interface MyLearningPlanResponse {
   plan: LearningPlan | null;
 }
 
+export interface MyTopicStep {
+  id: string;
+  title: string;
+  type: string;
+  category: string | null;
+  priority: string | null;
+  assignmentStatus: string | null;
+  estTime: string | null;
+  completed: boolean;
+}
+
+export interface MyTopicSection {
+  id: string;
+  title: string;
+  steps: MyTopicStep[];
+}
+
+/**
+ * GET /career-builder/topics's shape — the agent's full learning library
+ * (Topic -> Section -> Step), unlike the queue NOT filtered to
+ * eligible/prioritized items: per the MVP doc, all content stays accessible,
+ * tags only decide what's prioritized. Backs Learn and the "Skills
+ * development" cards on Home.
+ */
+export interface MyTopic {
+  id: string;
+  title: string;
+  description: string | null;
+  icon: string | null;
+  totalSteps: number;
+  completedSteps: number;
+  sections: MyTopicSection[];
+}
+
 /** Suggested-answer sets exactly as confirmed by product 2026-08-28/29. */
 export const EXPERIENCE_LENGTH_OPTIONS = [
   'Brand New',

@@ -5,12 +5,15 @@ import { usePathname } from 'next/navigation';
 import { GraduationCap, House, Map, TrendingUp, Building2, type LucideIcon } from 'lucide-react';
 import { SignOutButton } from './sign-out-button';
 
+// Order confirmed against the shipped Cockpit mock's own nav source
+// (platform-ui.tsx's SECTIONS array) — not the same order the earlier
+// drafts or Confluence's page text separately describe.
 const NAV_ITEMS: { label: string; href: string; Icon: LucideIcon }[] = [
   { label: 'Home', href: '/', Icon: House },
-  { label: 'Learn', href: '/learn', Icon: GraduationCap },
-  { label: 'Plan', href: '/plan', Icon: Map },
-  { label: 'Transact', href: '/transact', Icon: TrendingUp },
   { label: 'Office', href: '/office', Icon: Building2 },
+  { label: 'Transact', href: '/transact', Icon: TrendingUp },
+  { label: 'Plan', href: '/plan', Icon: Map },
+  { label: 'Learn', href: '/learn', Icon: GraduationCap },
 ];
 
 function initials(name: string): string {

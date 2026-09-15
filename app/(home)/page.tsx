@@ -1,13 +1,15 @@
 import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/auth/session';
-import type { MyAgentContext, MyLearningPlanResponse } from '@/lib/career-builder';
+import type { MyAgentContext, MyLearningPlanResponse, MyTopic } from '@/lib/career-builder';
 import { LearningQueue } from './_components/home/learning-queue';
+import { SkillsDevelopment } from './_components/skills-development';
 
 export default async function HomePage() {
-  const [session, myContext, planResponse] = await Promise.all([
+  const [session, myContext, planResponse, topics] = await Promise.all([
     getSession(),
     apiGet<MyAgentContext | null>('/career-builder/me'),
     apiGet<MyLearningPlanResponse>('/career-builder/plan'),
+    apiGet<MyTopic[]>('/career-builder/topics'),
   ]);
 
   const items = planResponse?.queue ?? [];
@@ -25,16 +27,20 @@ export default async function HomePage() {
           : "Here's what we'd focus on next."}
       </p>
 
-      {items.length === 0 || !myContext ? (
-        <div className="mt-8 rounded-xl border border-dashed border-gray-200 bg-white px-8 py-12 text-center">
-          <p className="text-sm font-medium text-gray-600">Nothing to show yet</p>
-          <p className="mt-1 text-sm text-gray-400">
-            Your office hasn&apos;t added tagged content for your level yet — check back soon.
-          </p>
-        </div>
-      ) : (
-        <LearningQueue workspaceId={myContext.workspaceId} items={items} plan={plan} />
-      )}
+      <div className="mt-6 space-y-6">
+        {items.length === 0 || !myContext ? (
+          <div className="rounded-xl border border-dashed border-gray-200 bg-white px-8 py-12 text-center">
+            <p className="text-sm font-medium text-gray-600">Nothing to show yet</p>
+            <p className="mt-1 text-sm text-gray-400">
+              Your office hasn&apos;t added tagged content for your level yet — check back soon.
+            </p>
+          </div>
+        ) : (
+          <LearningQueue workspaceId={myContext.workspaceId} items={items} plan={plan} />
+        )}
+
+        {topics && topics.length > 0 && <SkillsDevelopment topics={topics} />}
+      </div>
     </div>
   );
 }

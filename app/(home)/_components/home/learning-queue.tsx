@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { apiClientDelete, apiClientPost } from '@/lib/api-client';
 import {
   getExplanation,
-  rankedFactorReasons,
   type LearningPlan,
   type LearningPlanStep,
   type RankedContentItem,
@@ -31,7 +30,7 @@ const TYPE_LABEL: Record<string, string> = {
   plain_text: 'Reading',
 };
 
-/** Small pill — matches the mock's "Suggested"/priority tag scale exactly (10px, px-1.5 py-0.5, rounded not rounded-md). */
+/** Small pill — matches the mock's tag scale exactly (10px, px-1.5 py-0.5, rounded not rounded-md). */
 const TAG_CLASS = 'rounded px-1.5 py-0.5 text-[10px] font-semibold';
 
 function priorityLabel(p: string): string {
@@ -68,13 +67,13 @@ interface Props {
 }
 
 /**
- * The restyled Home queue — hero suggestion + "why this" panel, then either
- * the AI-curated plan sequence or the deterministic fallback, matching the
- * two view modes the API already distinguishes (plan possibly null). Marking
- * an item complete calls the same content-completion endpoint ContentList
- * uses on the Learn page; completed items move into a "Done" list locally
- * (optimistic — a refresh naturally drops them since the queue already
- * excludes completed/dismissed assignments server-side).
+ * Home's "Next best actions" — one card, the top item highlighted inline
+ * (title + why + actions), the rest as plain rows below it, matching the
+ * current Cockpit direction's PriorityList pattern (no separate "Why this"
+ * side panel — that's the previous direction's AiSuggestion pattern).
+ * Marking an item complete calls the same content-completion endpoint
+ * Learn's ContentViewer uses; completed items move into a "Done" list
+ * locally with an Undo, same as before.
  */
 export function LearningQueue({ workspaceId, items, plan }: Props) {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -126,65 +125,40 @@ export function LearningQueue({ workspaceId, items, plan }: Props) {
         )
     : [];
 
-  let hero: RankedContentItem | null = null;
-  let heroTip: string | undefined;
-  let restEntries: { item: RankedContentItem; tip?: string }[] = [];
-  let sectionLabel = 'Recommended queue';
+  let entries: { item: RankedContentItem; tip?: string }[];
   let planSummary: string | null = null;
 
   if (planSteps.length > 0) {
-    hero = planSteps[0].item;
-    heroTip = planSteps[0].step.tip;
-    const planItemIds = new Set(planSteps.map((entry) => entry.item.id));
-    restEntries = [
-      ...planSteps.slice(1).map((entry) => ({ item: entry.item, tip: entry.step.tip })),
-      ...visible.filter((item) => !planItemIds.has(item.id)).map((item) => ({ item })),
-    ];
-    sectionLabel = 'Your learning plan';
+    entries = planSteps.map((entry) => ({ item: entry.item, tip: entry.step.tip }));
     planSummary = plan!.planSummary;
-  } else if (visible.length > 0) {
-    hero = visible[0];
-    restEntries = visible.slice(1).map((item) => ({ item }));
+  } else {
+    entries = visible.map((item) => ({ item }));
   }
 
   return (
-    <div className="mt-6 space-y-6">
-      {hero ? (
-        <>
-          <Hero
-            item={hero}
-            tip={heroTip}
-            pending={pendingId === hero.id}
-            hasError={errorId === hero.id}
-            onComplete={() => void markComplete(hero!.id)}
-          />
-
-          {planSummary && (
-            <p className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-900">
-              {planSummary}
-            </p>
-          )}
-
-          {restEntries.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-[11px] font-semibold tracking-[0.09em] text-gray-500 uppercase">
-                {sectionLabel}
-              </h2>
-              <div className="space-y-3">
-                {restEntries.map(({ item, tip }) => (
-                  <QueueRow
-                    key={item.id}
-                    item={item}
-                    tip={tip}
-                    pending={pendingId === item.id}
-                    hasError={errorId === item.id}
-                    onComplete={() => void markComplete(item.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
+    <div className="space-y-6">
+      {entries.length > 0 ? (
+        <div className="rounded-xl border border-gray-100 bg-white p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[11px] font-semibold tracking-[0.09em] text-gray-500 uppercase">
+              Next best actions
+            </h2>
+            <span className="text-xs text-gray-400">{entries.length} open</span>
+          </div>
+          <div className="space-y-1.5">
+            {entries.map(({ item, tip }, index) => (
+              <Row
+                key={item.id}
+                item={item}
+                tip={tip}
+                top={index === 0}
+                pending={pendingId === item.id}
+                hasError={errorId === item.id}
+                onComplete={() => void markComplete(item.id)}
+              />
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="rounded-xl border border-dashed border-gray-200 bg-white px-8 py-12 text-center">
           <p className="text-sm font-medium text-gray-600">You&apos;re all caught up</p>
@@ -192,6 +166,12 @@ export function LearningQueue({ workspaceId, items, plan }: Props) {
             Nothing left in your queue right now — check back after your office adds more.
           </p>
         </div>
+      )}
+
+      {planSummary && (
+        <p className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+          {planSummary}
+        </p>
       )}
 
       {doneItems.length > 0 && (
@@ -225,96 +205,63 @@ export function LearningQueue({ workspaceId, items, plan }: Props) {
   );
 }
 
-function Hero({
+function Row({
   item,
   tip,
+  top,
   pending,
   hasError,
   onComplete,
 }: {
   item: RankedContentItem;
   tip?: string;
+  top: boolean;
   pending: boolean;
   hasError: boolean;
   onComplete: () => void;
 }) {
-  const reasons = rankedFactorReasons(item);
+  const why = tip ?? getExplanation(item);
 
-  return (
-    <div className="flex flex-wrap items-start gap-6">
-      <div className="min-w-0 flex-1 basis-[280px] rounded-xl border border-gray-100 border-l-2 border-l-teal-600 bg-white p-4 sm:p-5">
+  if (top) {
+    return (
+      <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3.5">
         <p className="text-[11px] font-semibold tracking-[0.09em] text-teal-700 uppercase">
-          PCx suggests
+          Next best action
         </p>
-        <h2 className="mt-1 text-lg font-bold text-gray-900">{item.title}</h2>
-        <p className="mt-2 text-sm text-gray-500">{tip ?? getExplanation(item)}</p>
-        <div className="mt-4 flex items-center gap-3">
+        <h3 className="mt-1 text-sm font-semibold text-gray-900">{item.title}</h3>
+        <p className="mt-1 text-sm text-gray-600">{why}</p>
+        <div className="mt-3 flex items-center gap-3">
           <button
             onClick={onComplete}
             disabled={pending}
-            className="inline-flex items-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-50"
+            className="inline-flex items-center rounded-lg bg-teal-600 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-50"
           >
             {pending ? 'Marking…' : 'Mark as complete'}
           </button>
-          <span className="text-xs text-gray-400">Score {item.score}</span>
+          <ItemTags item={item} />
         </div>
         {hasError && (
           <p className="mt-2 text-xs text-red-600">Couldn&apos;t mark complete — try again.</p>
         )}
-        <div className="mt-4">
-          <ItemTags item={item} />
-        </div>
       </div>
+    );
+  }
 
-      <div className="min-w-0 flex-1 basis-[220px] rounded-xl border border-gray-100 bg-white p-4 sm:p-5">
-        <p className="text-[11px] font-semibold tracking-[0.09em] text-gray-500 uppercase">
-          Why this
-        </p>
-        {reasons.length > 0 ? (
-          <ul className="mt-2 space-y-1.5 text-sm text-gray-600">
-            {reasons.map((reason) => (
-              <li key={reason} className="flex gap-1.5">
-                <span className="text-teal-600">•</span>
-                <span>{reason}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-gray-400">Next up in your queue.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function QueueRow({
-  item,
-  tip,
-  pending,
-  hasError,
-  onComplete,
-}: {
-  item: RankedContentItem;
-  tip?: string;
-  pending: boolean;
-  hasError: boolean;
-  onComplete: () => void;
-}) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-4">
+    <div className="flex items-start gap-3 border-t border-gray-100 py-2.5 first:border-t-0">
       <button
         onClick={onComplete}
         disabled={pending}
         aria-label={`Mark "${item.title}" as complete`}
-        className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-gray-300 transition-colors hover:border-teal-600 disabled:opacity-50"
+        className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 border-gray-300 transition-colors hover:border-teal-600 disabled:opacity-50"
       />
       <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-semibold text-gray-900">{item.title}</h3>
-        <p className="mt-0.5 text-xs text-gray-500">{tip ?? getExplanation(item)}</p>
+        <h3 className="text-sm font-medium text-gray-800">{item.title}</h3>
+        <p className="mt-0.5 text-xs text-gray-500">{why}</p>
         {hasError && (
           <p className="mt-1 text-xs text-red-600">Couldn&apos;t mark complete — try again.</p>
         )}
-        <div className="mt-2">
+        <div className="mt-1.5">
           <ItemTags item={item} />
         </div>
       </div>
