@@ -71,12 +71,25 @@ export function ContentViewer({
 
   if (item.type === 'video') {
     return (
-      <VideoPlayer
-        workspaceId={workspaceId}
-        contentId={item.id}
-        config={item.config as VideoConfig}
-        onComplete={() => onCompletedChange(true)}
-      />
+      <div className="space-y-2">
+        <VideoPlayer
+          workspaceId={workspaceId}
+          contentId={item.id}
+          config={item.config as VideoConfig}
+          onComplete={() => onCompletedChange(true)}
+        />
+        {/* The `ended` event is the primary signal, but the MVP completion rule for
+            video is "ends OR Mark as Complete" — an agent who already knows the
+            material, or who watched it elsewhere, shouldn't have to sit through
+            it again just to check the box. */}
+        <CompletionControl
+          completed={completed}
+          pending={pending}
+          error={error}
+          onMarkComplete={() => void markComplete()}
+          onUndo={() => void undoComplete()}
+        />
+      </div>
     );
   }
 
@@ -121,25 +134,52 @@ export function ContentViewer({
         <p className="text-sm text-gray-400">No additional content.</p>
       )}
       <div className="mt-4">
-        {completed ? (
-          <button
-            onClick={() => void undoComplete()}
-            disabled={pending}
-            className="text-xs font-medium text-gray-500 underline decoration-dotted underline-offset-2 hover:text-teal-700 disabled:opacity-50"
-          >
-            {pending ? 'Undoing…' : '✓ Completed — Undo'}
-          </button>
-        ) : (
-          <button
-            onClick={() => void markComplete()}
-            disabled={pending}
-            className="inline-flex items-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-50"
-          >
-            {pending ? 'Marking…' : 'Mark as complete'}
-          </button>
-        )}
+        <CompletionControl
+          completed={completed}
+          pending={pending}
+          error={error}
+          onMarkComplete={() => void markComplete()}
+          onUndo={() => void undoComplete()}
+        />
       </div>
-      {error && <p className="mt-2 text-xs text-red-600">Couldn&apos;t update — try again.</p>}
     </div>
+  );
+}
+
+/** Manual completion toggle, shared by every content type — video's `ended` event and resource/link's auto-complete-on-open are additional triggers, never a replacement for this one. */
+function CompletionControl({
+  completed,
+  pending,
+  error,
+  onMarkComplete,
+  onUndo,
+}: {
+  completed: boolean;
+  pending: boolean;
+  error: boolean;
+  onMarkComplete: () => void;
+  onUndo: () => void;
+}) {
+  return (
+    <>
+      {completed ? (
+        <button
+          onClick={onUndo}
+          disabled={pending}
+          className="text-xs font-medium text-gray-500 underline decoration-dotted underline-offset-2 hover:text-teal-700 disabled:opacity-50"
+        >
+          {pending ? 'Undoing…' : '✓ Completed — Undo'}
+        </button>
+      ) : (
+        <button
+          onClick={onMarkComplete}
+          disabled={pending}
+          className="inline-flex items-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-50"
+        >
+          {pending ? 'Marking…' : 'Mark as complete'}
+        </button>
+      )}
+      {error && <p className="mt-2 text-xs text-red-600">Couldn&apos;t update — try again.</p>}
+    </>
   );
 }
