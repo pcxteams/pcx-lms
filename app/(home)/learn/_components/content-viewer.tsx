@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Link2 } from 'lucide-react';
+import { BookOpen, FileText, Link2, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { VideoPlayer } from '@/components/video-player';
 import { apiClientDelete, apiClientGet, apiClientPost } from '@/lib/api-client';
 import type {
@@ -131,14 +131,23 @@ export function ContentViewer({
 
   // instruction / plain_text / leader_verification — text body, manual completion.
   const body = (item.config as TextConfig | undefined)?.body;
+  const { icon: Icon, label } = TEXT_TYPE_META[item.type] ?? TEXT_TYPE_META.plain_text;
   return (
-    <div className="flex min-h-[200px] flex-col rounded-xl border border-gray-100 bg-gray-50 p-5">
+    <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
+          <Icon size={16} />
+        </span>
+        <span className="text-xs font-semibold tracking-[0.08em] text-gray-500 uppercase">
+          {label}
+        </span>
+      </div>
       {body ? (
-        <p className="whitespace-pre-wrap text-sm text-gray-700">{body}</p>
+        <p className="mt-4 text-[15px] leading-relaxed whitespace-pre-wrap text-gray-700">{body}</p>
       ) : (
-        <p className="text-sm text-gray-400">No additional content.</p>
+        <p className="mt-4 text-sm text-gray-400">No additional content.</p>
       )}
-      <div className="mt-4">
+      <div className="mt-5 border-t border-gray-100 pt-4">
         <CompletionControl
           completed={completed}
           pending={pending}
@@ -150,6 +159,12 @@ export function ContentViewer({
     </div>
   );
 }
+
+const TEXT_TYPE_META: Record<string, { icon: LucideIcon; label: string }> = {
+  instruction: { icon: BookOpen, label: 'Guide' },
+  plain_text: { icon: BookOpen, label: 'Reading' },
+  leader_verification: { icon: ShieldCheck, label: 'Verification' },
+};
 
 /** Manual completion toggle, shared by every content type — video's `ended` event and resource/link's auto-complete-on-open are additional triggers, never a replacement for this one. */
 function CompletionControl({
