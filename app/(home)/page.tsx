@@ -2,6 +2,7 @@ import { apiGet } from '@/lib/api';
 import { getSession } from '@/lib/auth/session';
 import type { MyAgentContext, MyLearningPlanResponse, MyTopic } from '@/lib/career-builder';
 import { LearningQueue } from './_components/home/learning-queue';
+import { TodayFocus } from './_components/home/today-focus';
 import { SkillsDevelopment } from './_components/skills-development';
 
 export default async function HomePage() {
@@ -28,6 +29,10 @@ export default async function HomePage() {
       </p>
 
       <div className="mt-6 space-y-6">
+        {/* Only when the AI plan actually generated — the quote is its real
+            planSummary, not a fabricated "annual goal" (no Goals entity yet). */}
+        {plan && <TodayFocus quote={plan.planSummary} />}
+
         {items.length === 0 || !myContext ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-white px-8 py-12 text-center">
             <p className="text-sm font-medium text-gray-600">Nothing to show yet</p>

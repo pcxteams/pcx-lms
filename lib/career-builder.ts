@@ -26,6 +26,7 @@ export interface RankedContentItem {
   category: string | null;
   priority: string;
   assignmentStatus: string;
+  estTime: string | null;
   score: number;
   factors: RankedContentFactor[];
   /** LLM-generated "why" text. Undefined when generation failed — fall back to explainRanking(). */
