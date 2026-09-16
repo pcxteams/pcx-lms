@@ -13,7 +13,7 @@ declare global {
           videoId: string;
           events: { onStateChange: (e: { data: number }) => void };
         }
-      ) => unknown;
+      ) => { destroy: () => void };
       PlayerState: { ENDED: number };
     };
     onYouTubeIframeAPIReady?: () => void;
@@ -21,7 +21,7 @@ declare global {
       Player: new (
         el: HTMLElement,
         opts: { id: string }
-      ) => { on: (event: string, cb: () => void) => void };
+      ) => { on: (event: string, cb: () => void) => void; destroy: () => Promise<void> };
     };
   }
 }
@@ -97,17 +97,37 @@ export function VideoPlayer({
     };
   }, [workspaceId, contentId, config]);
 
-  // Embed case: load the provider SDK and wire its ended event.
+  // Embed case: load the provider SDK and wire its ended event. Guards
+  // against the effect outliving its own embed — without `cancelled` and a
+  // teardown, switching from one embedded video to another while this
+  // component stays mounted (e.g. no `key` on the parent) would construct a
+  // second player on top of the first's iframe, which is exactly what made
+  // the canvas slow to show and sometimes need a second click to render.
+  // Callers should still key this component by contentId so a genuine item
+  // change gets a fresh <div> too — this teardown is the belt to that
+  // suspenders, not a replacement for it.
   useEffect(() => {
     if (!isVideoEmbedConfig(config)) return;
     const el = embedRef.current;
     if (!el) return;
 
+    let cancelled = false;
+    let player: { destroy: () => void | Promise<void> } | null = null;
+    let readyCallback: (() => void) | null = null;
+
     if (config.provider === 'youtube') {
-      loadScriptOnce('https://www.youtube.com/iframe_api', () => !!window.YT).then(() => {
+      // `window.YT` itself exists as a stub the moment the script starts
+      // executing, before `YT.Player` is actually a constructor — treating
+      // the object's mere presence as "ready" raced the API's own async init
+      // and threw ("YT.Player is not a constructor"), which is what made the
+      // canvas need a second click: the first attempt silently crashed, and
+      // by the second attempt the API had actually finished loading.
+      const youTubeReady = () => typeof window.YT?.Player === 'function';
+      loadScriptOnce('https://www.youtube.com/iframe_api', youTubeReady).then(() => {
+        if (cancelled) return;
         const create = () => {
-          if (!window.YT) return;
-          new window.YT.Player(el, {
+          if (!youTubeReady() || cancelled) return;
+          player = new window.YT!.Player(el, {
             videoId: config.embedId,
             events: {
               onStateChange: (e) => {
@@ -116,19 +136,35 @@ export function VideoPlayer({
             },
           });
         };
-        if (window.YT) create();
-        else window.onYouTubeIframeAPIReady = create;
+        if (youTubeReady()) {
+          create();
+        } else {
+          readyCallback = create;
+          window.onYouTubeIframeAPIReady = create;
+        }
       });
     } else {
       loadScriptOnce('https://player.vimeo.com/api/player.js', () => !!window.Vimeo).then(() => {
+        if (cancelled) return;
         if (!window.Vimeo) {
           setError('Could not load this video. Please try again.');
           return;
         }
-        const player = new window.Vimeo.Player(el, { id: config.embedId });
-        player.on('ended', handleEnded);
+        const p = new window.Vimeo.Player(el, { id: config.embedId });
+        p.on('ended', handleEnded);
+        player = p;
       });
     }
+
+    return () => {
+      cancelled = true;
+      // Only clear the global callback if it's still ours to clear — a
+      // later mount may have already claimed it for its own video.
+      if (readyCallback && window.onYouTubeIframeAPIReady === readyCallback) {
+        window.onYouTubeIframeAPIReady = undefined;
+      }
+      player?.destroy();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
