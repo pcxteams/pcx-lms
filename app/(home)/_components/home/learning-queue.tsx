@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 import { apiClientDelete, apiClientPost } from '@/lib/api-client';
 import {
   getExplanation,
@@ -9,57 +10,6 @@ import {
   type RankedContentItem,
 } from '@/lib/career-builder';
 
-const PRIORITY_TAG: Record<string, string> = {
-  critical: 'bg-red-50 text-red-700',
-  very_important: 'bg-amber-50 text-amber-700',
-  important: 'bg-gray-100 text-gray-600',
-};
-
-const STATUS_TAG: Record<string, string> = {
-  required: 'bg-blue-50 text-blue-700',
-  recommended: 'bg-teal-50 text-teal-700',
-  optional: 'bg-gray-100 text-gray-600',
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  video: 'Video',
-  resource: 'Resource',
-  external_link: 'Link',
-  leader_verification: 'Verification',
-  instruction: 'Guide',
-  plain_text: 'Reading',
-};
-
-/** Small pill — matches the mock's tag scale exactly (10px, px-1.5 py-0.5, rounded not rounded-md). */
-const TAG_CLASS = 'rounded px-1.5 py-0.5 text-[10px] font-semibold';
-
-function priorityLabel(p: string): string {
-  return p === 'very_important' ? 'Very Important' : p.charAt(0).toUpperCase() + p.slice(1);
-}
-
-function ItemTags({ item }: { item: RankedContentItem }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      <span
-        className={`${TAG_CLASS} ${PRIORITY_TAG[item.priority] ?? 'bg-gray-100 text-gray-600'}`}
-      >
-        {priorityLabel(item.priority)}
-      </span>
-      <span
-        className={`${TAG_CLASS} ${STATUS_TAG[item.assignmentStatus] ?? 'bg-gray-100 text-gray-600'}`}
-      >
-        {item.assignmentStatus.charAt(0).toUpperCase() + item.assignmentStatus.slice(1)}
-      </span>
-      {item.category && (
-        <span className={`${TAG_CLASS} bg-gray-100 text-gray-500`}>{item.category}</span>
-      )}
-      <span className={`${TAG_CLASS} bg-gray-100 text-gray-500`}>
-        {TYPE_LABEL[item.type] ?? item.type}
-      </span>
-    </div>
-  );
-}
-
 interface Props {
   workspaceId: string;
   items: RankedContentItem[];
@@ -67,13 +17,12 @@ interface Props {
 }
 
 /**
- * Home's "Next best actions" — one card, the top item highlighted inline
- * (title + why + actions), the rest as plain rows below it, matching the
- * current Cockpit direction's PriorityList pattern (no separate "Why this"
- * side panel — that's the previous direction's AiSuggestion pattern).
- * Marking an item complete calls the same content-completion endpoint
- * Learn's ContentViewer uses; completed items move into a "Done" list
- * locally with an Undo, same as before.
+ * Home's "Next best actions" — styled to match the shipped Cockpit mock's
+ * `PriorityList`/`Card`/`CardHead` almost class-for-class: a checkbox-first
+ * row (the whole row toggles complete, not a separate button), the top item
+ * lifted out and highlighted, plain rows below, a "Done" section whose rows
+ * toggle back to undo — same symmetry the mock's `plan.toggle` has, just
+ * backed by our real completion/undo endpoint instead of local mock state.
  */
 export function LearningQueue({ workspaceId, items, plan }: Props) {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -83,31 +32,22 @@ export function LearningQueue({ workspaceId, items, plan }: Props) {
   const visible = items.filter((item) => !completedIds.has(item.id));
   const doneItems = items.filter((item) => completedIds.has(item.id));
 
-  async function markComplete(id: string) {
+  async function toggle(id: string, currentlyDone: boolean) {
     setPendingId(id);
     setErrorId(null);
-    const res = await apiClientPost<{ completed: boolean }>(
-      `/workspaces/${workspaceId}/content/${id}/complete`
-    );
-    setPendingId(null);
-    if (res) {
-      setCompletedIds((prev) => new Set(prev).add(id));
-    } else {
-      setErrorId(id);
-    }
-  }
-
-  async function undoComplete(id: string) {
-    setPendingId(id);
-    setErrorId(null);
-    const res = await apiClientDelete<{ completed: boolean }>(
-      `/workspaces/${workspaceId}/content/${id}/complete`
-    );
+    const res = currentlyDone
+      ? await apiClientDelete<{ completed: boolean }>(
+          `/workspaces/${workspaceId}/content/${id}/complete`
+        )
+      : await apiClientPost<{ completed: boolean }>(
+          `/workspaces/${workspaceId}/content/${id}/complete`
+        );
     setPendingId(null);
     if (res) {
       setCompletedIds((prev) => {
         const next = new Set(prev);
-        next.delete(id);
+        if (currentlyDone) next.delete(id);
+        else next.add(id);
         return next;
       });
     } else {
@@ -129,142 +69,169 @@ export function LearningQueue({ workspaceId, items, plan }: Props) {
   let planSummary: string | null = null;
 
   if (planSteps.length > 0) {
-    entries = planSteps.map((entry) => ({ item: entry.item, tip: entry.step.tip }));
+    // The AI plan only ever curates a short subset of the full candidate
+    // list (career-builder-guidance.service.ts caps it at 8 and typically
+    // sequences far fewer) — anything still eligible but not chosen for the
+    // plan stays in the queue below it, not hidden.
+    const planItemIds = new Set(planSteps.map((entry) => entry.item.id));
+    entries = [
+      ...planSteps.map((entry) => ({ item: entry.item, tip: entry.step.tip })),
+      ...visible.filter((item) => !planItemIds.has(item.id)).map((item) => ({ item })),
+    ];
     planSummary = plan!.planSummary;
   } else {
     entries = visible.map((item) => ({ item }));
   }
 
-  return (
-    <div className="space-y-6">
-      {entries.length > 0 ? (
-        <div className="rounded-xl border border-gray-100 bg-white p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[11px] font-semibold tracking-[0.09em] text-gray-500 uppercase">
-              Next best actions
-            </h2>
-            <span className="text-xs text-gray-400">{entries.length} open</span>
-          </div>
-          <div className="space-y-1.5">
-            {entries.map(({ item, tip }, index) => (
-              <Row
-                key={item.id}
-                item={item}
-                tip={tip}
-                top={index === 0}
-                pending={pendingId === item.id}
-                hasError={errorId === item.id}
-                onComplete={() => void markComplete(item.id)}
-              />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-8 py-12 text-center">
-          <p className="text-sm font-medium text-gray-600">You&apos;re all caught up</p>
-          <p className="mt-1 text-sm text-gray-400">
-            Nothing left in your queue right now — check back after your office adds more.
-          </p>
-        </div>
-      )}
+  const [top, ...rest] = entries;
 
-      {planSummary && (
-        <p className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-900">
-          {planSummary}
+  return (
+    <div className="min-w-0 rounded-xl border border-gray-100 bg-white p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-gray-100 pb-3">
+        <h2 className="min-w-0 text-[11px] font-semibold tracking-[0.09em] text-gray-500 uppercase">
+          Next best actions
+        </h2>
+        <span className="text-[11px] text-gray-400">{entries.length} open</span>
+      </div>
+
+      {entries.length === 0 ? (
+        <p className="py-8 text-center text-sm text-gray-400">
+          Nothing left in your queue right now — check back after your office adds more.
         </p>
+      ) : (
+        <>
+          {top && (
+            <Row
+              item={top.item}
+              tip={top.tip}
+              highlight
+              pending={pendingId === top.item.id}
+              hasError={errorId === top.item.id}
+              onToggle={() => void toggle(top.item.id, false)}
+            />
+          )}
+
+          {planSummary && (
+            <p className="mt-3 mb-1 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+              {planSummary}
+            </p>
+          )}
+
+          <ul className="mt-2 grid grid-cols-1 gap-0.5">
+            {rest.map(({ item, tip }) => (
+              <li key={item.id}>
+                <Row
+                  item={item}
+                  tip={tip}
+                  pending={pendingId === item.id}
+                  hasError={errorId === item.id}
+                  onToggle={() => void toggle(item.id, false)}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {doneItems.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-[11px] font-semibold tracking-[0.09em] text-gray-500 uppercase">
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          <p className="mb-1.5 text-[11px] font-semibold tracking-[0.09em] text-gray-400 uppercase">
             Done, {doneItems.length}
-          </h2>
-          <ul className="space-y-1.5">
+          </p>
+          <ul className="grid grid-cols-1 gap-0.5">
             {doneItems.map((item) => (
-              <li key={item.id} className="flex items-center gap-2 text-sm text-gray-400">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-teal-600 text-[10px] text-white">
-                  ✓
-                </span>
-                <span className="line-through">{item.title}</span>
+              <li key={item.id}>
                 <button
-                  onClick={() => void undoComplete(item.id)}
+                  onClick={() => void toggle(item.id, true)}
                   disabled={pendingId === item.id}
-                  className="text-xs font-medium text-gray-400 underline decoration-dotted underline-offset-2 hover:text-teal-700 disabled:opacity-50"
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-gray-50 disabled:opacity-50"
                 >
-                  {pendingId === item.id ? 'Undoing…' : 'Undo'}
+                  <Checkbox on />
+                  <span className="text-sm text-gray-400 line-through">{item.title}</span>
+                  {pendingId === item.id && <span className="text-xs text-gray-400">Undoing…</span>}
                 </button>
                 {errorId === item.id && (
-                  <span className="text-xs text-red-600">Couldn&apos;t undo — try again.</span>
+                  <p className="pl-2 text-xs text-red-600">Couldn&apos;t undo — try again.</p>
                 )}
               </li>
             ))}
           </ul>
-        </section>
+        </div>
       )}
     </div>
+  );
+}
+
+function Checkbox({ on }: { on: boolean }) {
+  return (
+    <span
+      className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded border ${
+        on ? 'border-teal-600 bg-teal-600 text-white' : 'border-gray-300 bg-white'
+      }`}
+    >
+      {on && <Check size={12} strokeWidth={3} />}
+    </span>
   );
 }
 
 function Row({
   item,
   tip,
-  top,
+  highlight = false,
   pending,
   hasError,
-  onComplete,
+  onToggle,
 }: {
   item: RankedContentItem;
   tip?: string;
-  top: boolean;
+  highlight?: boolean;
   pending: boolean;
   hasError: boolean;
-  onComplete: () => void;
+  onToggle: () => void;
 }) {
   const why = tip ?? getExplanation(item);
 
-  if (top) {
-    return (
-      <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3.5">
-        <p className="text-[11px] font-semibold tracking-[0.09em] text-teal-700 uppercase">
-          Next best action
-        </p>
-        <h3 className="mt-1 text-sm font-semibold text-gray-900">{item.title}</h3>
-        <p className="mt-1 text-sm text-gray-600">{why}</p>
-        <div className="mt-3 flex items-center gap-3">
-          <button
-            onClick={onComplete}
-            disabled={pending}
-            className="inline-flex items-center rounded-lg bg-teal-600 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-50"
-          >
-            {pending ? 'Marking…' : 'Mark as complete'}
-          </button>
-          <ItemTags item={item} />
-        </div>
-        {hasError && (
-          <p className="mt-2 text-xs text-red-600">Couldn&apos;t mark complete — try again.</p>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-start gap-3 border-t border-gray-100 py-2.5 first:border-t-0">
+    <>
       <button
-        onClick={onComplete}
+        onClick={onToggle}
         disabled={pending}
-        aria-label={`Mark "${item.title}" as complete`}
-        className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 border-gray-300 transition-colors hover:border-teal-600 disabled:opacity-50"
-      />
-      <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-medium text-gray-800">{item.title}</h3>
-        <p className="mt-0.5 text-xs text-gray-500">{why}</p>
-        {hasError && (
-          <p className="mt-1 text-xs text-red-600">Couldn&apos;t mark complete — try again.</p>
-        )}
-        <div className="mt-1.5">
-          <ItemTags item={item} />
-        </div>
-      </div>
-    </div>
+        className={
+          highlight
+            ? 'mb-2 flex w-full items-start gap-3 rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-3 text-left transition-colors hover:bg-teal-50 disabled:opacity-50'
+            : 'flex w-full items-start gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50'
+        }
+      >
+        <span className="pt-0.5">
+          <Checkbox on={false} />
+        </span>
+        <span className="min-w-0 flex-1">
+          {highlight && (
+            <span className="text-[10px] font-semibold tracking-[0.09em] text-teal-700 uppercase">
+              Next best action
+            </span>
+          )}
+          <span
+            className={
+              highlight
+                ? 'mt-0.5 block text-sm font-semibold text-gray-900'
+                : 'block text-sm text-gray-700'
+            }
+          >
+            {item.title}
+          </span>
+          <span
+            className={`mt-1 block text-xs leading-relaxed ${highlight ? 'text-gray-600' : 'text-gray-400'}`}
+          >
+            {why}
+          </span>
+        </span>
+        {item.estTime && <span className="pt-0.5 text-xs text-gray-400">{item.estTime}</span>}
+      </button>
+      {pending && <p className="pl-2 text-xs text-gray-400">Marking…</p>}
+      {hasError && (
+        <p className="pl-2 text-xs text-red-600">Couldn&apos;t mark complete — try again.</p>
+      )}
+    </>
   );
 }
