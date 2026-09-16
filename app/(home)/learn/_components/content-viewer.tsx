@@ -73,6 +73,11 @@ export function ContentViewer({
     return (
       <div className="space-y-2">
         <VideoPlayer
+          // Forces a full remount on every item change — ContentViewer isn't
+          // recreated by React on its own between two video items (same
+          // component, same position in the tree), so without this key the
+          // embed effect below would reuse the previous video's DOM node.
+          key={item.id}
           workspaceId={workspaceId}
           contentId={item.id}
           config={item.config as VideoConfig}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Play } from 'lucide-react';
+import { BookOpen, FileText, Link2, Play, ShieldCheck, type LucideIcon } from 'lucide-react';
 import type { MyTopic } from '@/lib/career-builder';
 import type { ContentSummary } from '@/lib/content';
 import { ContentViewer } from './content-viewer';
@@ -15,6 +15,16 @@ const TYPE_LABEL: Record<string, string> = {
   leader_verification: 'Verification',
   instruction: 'Guide',
   plain_text: 'Reading',
+};
+
+/** "Your path" row icon — was a bare Play icon for every type, which read as "this is a video" even for a resource or reading step. */
+const TYPE_ICON: Record<string, LucideIcon> = {
+  video: Play,
+  resource: FileText,
+  external_link: Link2,
+  instruction: BookOpen,
+  plain_text: BookOpen,
+  leader_verification: ShieldCheck,
 };
 
 /** A simple, honest per-step reason — priority/requirement only, no fabricated AI text for items the ranking engine never scored. */
@@ -125,6 +135,7 @@ export function LearnContent({
               {section.steps.map((step) => {
                 const active = step.id === selectedStepId;
                 const done = completedOverride[step.id] ?? step.completed;
+                const TypeIcon = TYPE_ICON[step.type] ?? Play;
                 return (
                   <Link
                     key={step.id}
@@ -142,7 +153,14 @@ export function LearnContent({
                             : 'bg-gray-100 text-gray-400'
                       }`}
                     >
-                      {done && !active ? '✓' : <Play size={11} fill="currentColor" />}
+                      {done && !active ? (
+                        '✓'
+                      ) : (
+                        <TypeIcon
+                          size={11}
+                          fill={step.type === 'video' ? 'currentColor' : 'none'}
+                        />
+                      )}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span
