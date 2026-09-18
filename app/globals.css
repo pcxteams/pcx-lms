@@ -24,3 +24,51 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* --- Office Page — responsive row/column layout ---
+   Mirrors pcx-admin's globals.css so a row/column layout built in the admin
+   renders identically here. `.opb-row` establishes the query container;
+   `.opb-row-inner` (a descendant) flips direction, since a container cannot
+   style itself. Columns divide the row by span (grow ∝ span, basis 0) at/above
+   the row's stack breakpoint, and stack into one below it. The breakpoint is
+   chosen per row via .opb-stack-sm|md|lg (default md = 36rem) — a container
+   query condition can't read a CSS var, so the discrete classes stand in for a
+   `stackBelow` value. */
+.opb-row {
+  container-type: inline-size;
+}
+.opb-row-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--opb-gap, 1.5rem);
+}
+.opb-col {
+  min-width: 0;
+}
+@container (min-width: 30rem) {
+  .opb-row-inner.opb-stack-sm {
+    flex-direction: row;
+    align-items: var(--opb-align, stretch);
+  }
+  .opb-row-inner.opb-stack-sm > .opb-col {
+    flex: var(--opb-grow, 1) 1 0%;
+  }
+}
+@container (min-width: 36rem) {
+  .opb-row-inner.opb-stack-md {
+    flex-direction: row;
+    align-items: var(--opb-align, stretch);
+  }
+  .opb-row-inner.opb-stack-md > .opb-col {
+    flex: var(--opb-grow, 1) 1 0%;
+  }
+}
+@container (min-width: 48rem) {
+  .opb-row-inner.opb-stack-lg {
+    flex-direction: row;
+    align-items: var(--opb-align, stretch);
+  }
+  .opb-row-inner.opb-stack-lg > .opb-col {
+    flex: var(--opb-grow, 1) 1 0%;
+  }
+}
