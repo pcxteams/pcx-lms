@@ -4,8 +4,13 @@
  * `pcx-admin/src/lib/office-page-content.ts`. Keep all three in sync.
  */
 
+/**
+ * The section types the admin builder manages. `brokerage-info` carries no
+ * items: it renders the live `branding_config`, served as `OfficeBrokerage`.
+ */
 export const OFFICE_PAGE_SECTION_TYPES = [
   'hero-cards',
+  'brokerage-info',
   'vendor-carousel',
   'quick-links',
   'announcements',
@@ -112,6 +117,8 @@ export interface QuickLinkItem extends OfficePageItemBase {
   title: string;
   subtitle?: string;
   icon?: string;
+  /** The tool's own mark, preferred over `icon` when set. */
+  logoUrl?: string;
   accentColor?: string;
   action: OfficePageAction;
 }
@@ -133,6 +140,8 @@ export interface ResourceItem extends OfficePageItemBase {
   description?: string;
   category?: string;
   icon?: string;
+  /** Picture for the resource tile; falls back to `accentColor` + `icon`. */
+  imageUrl?: string;
   accentColor?: string;
   action: OfficePageAction;
 }
@@ -274,6 +283,37 @@ export interface WorkspaceAccess {
  * API response for the agent/read view (`GET /workspaces/:id/office-page/published`).
  * `content` is null until the page has been published (never exposes drafts).
  */
+/* ------------------------------------------------------------------ *
+ * Live data the API resolves and serves alongside the content.
+ * ------------------------------------------------------------------ */
+
+/** The workspace's identity, resolved from `workspace.branding_config`. */
+export interface OfficeBrokerage {
+  name: string;
+  logoUrl: string | null;
+  address: string | null;
+  /** "City, ST 00000", assembled server-side; null when empty. */
+  cityStateZip: string | null;
+  /** Google Maps link built from the assembled address; null without one. */
+  mapUrl: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+/** A referenced membership, resolved to the person behind it. */
+export interface OfficeMember {
+  membershipId: string;
+  name: string;
+  jobTitle: string | null;
+  email: string | null;
+  phone: string | null;
+  role: 'manager' | 'leader' | 'agent';
+}
+
+/** Referenced memberships, keyed by `workspace_membership.id`. */
+export type OfficeDirectory = Record<string, OfficeMember>;
+
 export interface OfficePagePublishedResponse {
   workspaceId: string;
   /** The workspace that owns the published content. For a Free Team this is its
@@ -283,5 +323,8 @@ export interface OfficePagePublishedResponse {
   owningWorkspaceName: string | null;
   pageStatus: 'draft' | 'published' | 'archived' | null;
   content: OfficePageContent | null;
+  /** Resolved live data. No roster: a reader gets only the people the page names. */
+  brokerage: OfficeBrokerage | null;
+  directory: OfficeDirectory;
   access: WorkspaceAccess;
 }

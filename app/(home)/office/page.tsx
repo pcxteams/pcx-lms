@@ -1,3 +1,4 @@
+import { Building2 } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import type { MyAgentContext } from '@/lib/career-builder';
 import type { OfficePagePublishedResponse } from '@/lib/office-page-content';
@@ -5,11 +6,13 @@ import { ComingSoon } from '../_components/coming-soon';
 import OfficePageView, { type AgentOfficeVendor } from './_components/office-page-view';
 
 /**
- * Agent-facing read of the workspace's published Office Page — deliberately
- * just the rendered content (via `OfficePageView`, ported from pcx-admin's
- * builder/preview renderer), with none of the admin's editing chrome. The
- * published endpoint returns `content: null` until an admin/leader has
- * actually published something, never the in-progress draft.
+ * The agent's read of their workspace's published Office Page: the rendered
+ * content, with none of the admin's editing chrome.
+ *
+ * Two fetches, because the page and its vendors publish on separate schedules.
+ * `content` stays null until someone publishes (never the draft), while vendors
+ * go live on approval. A Free Team's reads resolve to its Parent Office
+ * server-side, so the only inheritance handled here is naming it in the banner.
  */
 export default async function OfficePage() {
   const myContext = await apiGet<MyAgentContext | null>('/career-builder/me');
@@ -17,7 +20,7 @@ export default async function OfficePage() {
     return (
       <ComingSoon
         title="Office"
-        description="Announcements, events, resources, and forms from your office are coming here soon."
+        description="Announcements, events, resources, and forms from your office will appear here once you are added to one."
       />
     );
   }
@@ -26,8 +29,6 @@ export default async function OfficePage() {
     apiGet<OfficePagePublishedResponse>(
       `/workspaces/${myContext.workspaceId}/office-page/published`
     ),
-    // Live, DB-backed vendors are shown independent of whether the page
-    // itself has been published (mirrors pcx-admin's read view).
     apiGet<{ vendors: AgentOfficeVendor[] }>(`/workspaces/${myContext.workspaceId}/vendors/active`),
   ]);
   const activeVendors = vendorData?.vendors ?? [];
@@ -36,14 +37,28 @@ export default async function OfficePage() {
     return (
       <ComingSoon
         title="Office"
-        description="Your office hasn't published an Office page yet — check back soon."
+        description={`${myContext.workspaceName} hasn't published an Office page yet. Check back soon.`}
       />
     );
   }
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 pt-6 pb-12 sm:px-6 sm:pt-7">
-      <OfficePageView content={data.content ?? { sections: [] }} activeVendors={activeVendors} />
+      {/* A Free Team reads its Parent Office's page; say whose it is. */}
+      {data.owningWorkspaceName && (
+        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <Building2 size={15} className="mt-0.5 flex-none text-amber-600" strokeWidth={1.9} />
+          <p className="text-xs leading-relaxed text-amber-900">
+            Published by <b>{data.owningWorkspaceName}</b>.
+          </p>
+        </div>
+      )}
+      <OfficePageView
+        content={data.content ?? { sections: [] }}
+        brokerage={data.brokerage}
+        directory={data.directory ?? {}}
+        activeVendors={activeVendors}
+      />
     </div>
   );
 }
