@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PCx LMS (`pcx-lms`)
 
-## Getting Started
+Agent-facing learning experience for PCx V2 (Agent Home, Office, and learning surfaces). Next.js 16 app, **early stage** as of this handoff: most of the shipped work is the initial setup plus the Office Page content/structure. This is the repo that will become the real Agent app.
 
-First, run the development server:
+For how this repo fits with the other two, see [ARCHITECTURE.md in the API repo](../pcx-api-v2/ARCHITECTURE.md).
+
+## Stack
+
+- **Next.js 16** (App Router) with **React 19**.
+- **Better Auth 1.6.23** (`lib/`). Note this is older than the `1.7.2` used by `pcx-admin` and `pcx-api-v2`; KAN-159 upgraded those two but not the LMS.
+- **Tailwind** + **lucide-react**.
+- Package manager: **pnpm** (`pnpm-lock.yaml`), unlike the admin/api repos which use npm.
+- Husky pre-commit hooks (`prepare: husky`).
+
+> Note: this project targets Next.js 16, whose APIs and conventions differ from earlier versions. See `AGENTS.md` before changing framework-level code.
+
+## Requirements
+
+- Node 20+ and **pnpm**.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev                    # http://localhost:3002
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No `.env` is required yet (see below). See `.env.example` for the forward-looking placeholder.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The LMS currently reads **no** environment variables and does not call the backend. `.env.example` contains a commented `API_URL` placeholder for when the API/auth integration lands (it should mirror `pcx-admin`).
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Script        | What it does                      |
+| ------------- | --------------------------------- |
+| `pnpm dev`    | Dev server on port **3002**.      |
+| `pnpm build`  | Production build.                 |
+| `pnpm start`  | Serve the build on port **3002**. |
+| `pnpm lint`   | ESLint.                           |
+| `pnpm format` | Prettier over the repo.           |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `app/` — App Router. `(home)/` group and `login/`.
+- `components/` — shared UI.
+- `lib/` — helpers (incl. Better Auth).
+- `public/` — static assets.
 
-## Deploy on Vercel
+## Status and next steps
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- This repo is not yet wired to `pcx-api-v2`. When integrating, add `API_URL`, reuse the admin app's same-origin auth proxy pattern (`next.config.ts` rewrites), and align Better Auth to `1.7.2`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Related repos
+
+See [ARCHITECTURE.md](../pcx-api-v2/ARCHITECTURE.md).
